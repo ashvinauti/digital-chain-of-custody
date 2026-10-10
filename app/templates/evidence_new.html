@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload evidence</h1>
+<p>The file is hashed with SHA-256 as it is written to storage. You become its first custodian.</p>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="case_number">Case number</label><input type="text" id="case_number" name="case_number" required>
+  <label for="description">Description (source, device, how acquired)</label>
+  <textarea id="description" name="description" rows="4" required></textarea>
+  <label for="file">File</label><input type="file" id="file" name="file" required>
+  <p><button>Upload and hash</button></p>
+</form>
+{% endblock %}

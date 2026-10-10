@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Audit log</h1>
+{% if chain.ok %}
+  <p class="ok">Hash chain intact: {{ chain.entries_checked }} entries verified.</p>
+{% else %}
+  <p class="bad">HASH CHAIN BROKEN: {{ chain.errors|length }} problem(s).</p>
+  <ul>{% for eid, msg in chain.errors %}<li>entry {{ eid }}: {{ msg }}</li>{% endfor %}</ul>
+{% endif %}
+<p>Head hash: <span class="hash">{{ chain.head_hash }}</span></p>
+<p>Showing the latest {{ entries|length }} entries.</p>
+<table>
+  <tr><th>#</th><th>Timestamp (UTC)</th><th>Actor</th><th>Action</th><th>Evidence</th><th>Details</th><th>prev_hash / entry_hash</th></tr>
+  {% for e in entries %}
+  <tr><td>{{ e.id }}</td><td>{{ e.timestamp }}</td><td>{{ e.actor }}</td><td>{{ e.action }}</td>
+      <td>{{ e.evidence_id or '' }}</td><td><code>{{ e.details }}</code></td>
+      <td class="hash">{{ e.prev_hash }}<br>{{ e.entry_hash }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
