@@ -7,17 +7,27 @@ from app import db
 from app.auth import PERMISSIONS
 from app.models import AuditEntry, Evidence, User
 
-# (method, url, permission). Evidence #1 and user "bob" exist in every test.
+# (method, url, permission). Evidence #1 (case C-1, custodian alice) and
+# user #2 (bob) exist in every test.
 ROUTES = [
+    ("GET", "/cases", "cases.view"),
+    ("GET", "/cases/1", "cases.view"),
     ("GET", "/evidence", "evidence.view"),
     ("GET", "/evidence/1", "evidence.view"),
     ("GET", "/evidence/new", "evidence.create"),
     ("POST", "/evidence/1/transfer", "evidence.transfer"),
     ("POST", "/evidence/1/verify", "evidence.verify"),
+    ("GET", "/evidence/1/analysis", "evidence.analyze"),
+    ("POST", "/evidence/1/notes", "evidence.analyze"),
+    ("POST", "/evidence/1/export", "evidence.export"),
     ("POST", "/evidence/1/certificate", "certificate.issue"),
+    ("GET", "/certificates/verify", "certificate.verify"),
     ("GET", "/audit", "audit.view"),
+    ("GET", "/admin/cases", "cases.manage"),
+    ("GET", "/admin/cases/1", "cases.manage"),
     ("GET", "/admin/users", "users.manage"),
     ("POST", "/admin/users/2/active", "users.manage"),
+    ("GET", "/account/", "account.self"),
 ]
 USERS = {"investigator": "alice", "reviewer": "rita", "admin": "adam"}
 
@@ -31,7 +41,7 @@ def evidence(upload):
 @pytest.mark.parametrize("method,url,permission", ROUTES)
 def test_role_matrix(evidence, client_for, role, method, url, permission):
     client = client_for(USERS[role])
-    resp = client.open(url, method=method, data={"active": "1"})
+    resp = client.open(url, method=method, data={"active": "1", "text": "note"})
     if role in PERMISSIONS[permission]:
         assert resp.status_code in (200, 302), resp.status_code
     else:
@@ -47,7 +57,7 @@ def test_anonymous_redirected_to_login(evidence, app, method, url, _):
 
 def test_every_route_declares_a_permission(app):
     """Guards against a new route being added without @require(...)."""
-    public = {"static", "auth.login", "auth.logout", "main.index"}
+    public = {"static", "auth.login", "auth.login_2fa", "auth.logout", "main.index", "main.public_key"}
     for rule in app.url_map.iter_rules():
         if rule.endpoint in public:
             continue
@@ -66,11 +76,11 @@ def test_denied_access_is_audited(client_for):
 
 def test_wrong_password_and_disabled_user_cannot_log_in(app, client_for):
     client = app.test_client()
-    assert client.post("/login", data={"username": "alice", "password": "nope"}).status_code == 200
+    assert client.post("/login", data={"username": "alice", "password": "nope"}).status_code == 401
     bob = db.session.execute(select(User).where(User.username == "bob")).scalar_one()
     client_for("adam").post(f"/admin/users/{bob.id}/active", data={"active": "0"})
     resp = client.post("/login", data={"username": "bob", "password": "correct-horse-battery"})
-    assert resp.status_code == 200  # re-rendered form, not a redirect
+    assert resp.status_code == 401  # re-rendered form, not a redirect
 
 
 def _user(name):

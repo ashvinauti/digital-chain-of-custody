@@ -1,13 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Upload evidence</h1>
-<p>The file is hashed with SHA-256 as it is written to storage. You become its first custodian.</p>
+<p>The file is hashed with SHA-256 as it is written to storage. You become its first custodian.
+For files larger than the upload limit, use <code>flask ingest</code> on the server.</p>
+{% if not cases %}
+<p class="bad">You are not assigned to any case. Ask an admin to add you to one first.</p>
+{% else %}
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label for="case_number">Case number</label><input type="text" id="case_number" name="case_number" required>
+  <label for="case_id">Case</label>
+  <select id="case_id" name="case_id" required>
+    {% for c in cases %}<option value="{{ c.id }}" {% if c.id == selected %}selected{% endif %}>{{ c.number }}: {{ c.title }}</option>{% endfor %}
+  </select>
   <label for="description">Description (source, device, how acquired)</label>
   <textarea id="description" name="description" rows="4" required></textarea>
+  <label for="expected_sha256">Acquisition SHA-256 (optional, from your imaging tool; a mismatch rejects the upload)</label>
+  <input type="text" id="expected_sha256" name="expected_sha256" pattern="[0-9a-fA-F]{64}">
   <label for="file">File</label><input type="file" id="file" name="file" required>
   <p><button>Upload and hash</button></p>
 </form>
+{% endif %}
 {% endblock %}

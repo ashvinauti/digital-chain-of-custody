@@ -1,3 +1,8 @@
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://custody:${POSTGRES_PASSWORD}@db:5432/custody
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  REQUIRE_2FA: ${REQUIRE_2FA:-0}
+
 services:
   db:
     image: postgres:17-alpine
@@ -19,16 +24,40 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://custody:${POSTGRES_PASSWORD}@db:5432/custody
-      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      <<: *app-env
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-512}
     volumes:
       - evidence:/data/evidence
+      - keys:/data/keys
+      - anchors:/data/anchors
+      # Drop large images here and run `docker compose exec web flask ingest /ingest/<file> ...`
+      - ./ingest:/ingest:ro
     ports:
       - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Writes a signed record of the audit log head every ANCHOR_INTERVAL seconds.
+  # In production, point ANCHOR_FILE at storage the database host can't rewrite
+  # (WORM bucket, separate server), so truncating the log becomes detectable.
+  anchor:
+    build: .
+    depends_on:
+      web:
+        condition: service_healthy
+    environment: *app-env
+    volumes:
+      - keys:/data/keys:ro
+      - anchors:/data/anchors
+    entrypoint: ["sh", "-c", "while true; do flask anchor; sleep ${ANCHOR_INTERVAL:-300}; done"]
 
 volumes:
   pgdata:
   evidence:
+  keys:
+  anchors:

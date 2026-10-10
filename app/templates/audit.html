@@ -2,12 +2,13 @@
 {% block content %}
 <h1>Audit log</h1>
 {% if chain.ok %}
-  <p class="ok">Hash chain intact: {{ chain.entries_checked }} entries verified.</p>
+  <p class="ok">Audit log intact: {{ chain.entries_checked }} entries (hashes, links and signatures) and {{ chain.anchors_checked }} external anchors verified.</p>
 {% else %}
   <p class="bad">HASH CHAIN BROKEN: {{ chain.errors|length }} problem(s).</p>
-  <ul>{% for eid, msg in chain.errors %}<li>entry {{ eid }}: {{ msg }}</li>{% endfor %}</ul>
+  <ul>{% for eid, msg in chain.errors %}<li>{% if eid %}entry {{ eid }}: {% endif %}{{ msg }}</li>{% endfor %}</ul>
 {% endif %}
-<p>Head hash: <span class="hash">{{ chain.head_hash }}</span></p>
+<p>Head: entry {{ chain.head_id }}, <span class="hash">{{ chain.head_hash }}</span><br>
+Signing key ID <code>{{ key_id }}</code> (<a href="{{ url_for('main.public_key') }}">public key</a>)</p>
 <p>Showing the latest {{ entries|length }} entries.</p>
 <table>
   <tr><th>#</th><th>Timestamp (UTC)</th><th>Actor</th><th>Action</th><th>Evidence</th><th>Details</th><th>prev_hash / entry_hash</th></tr>

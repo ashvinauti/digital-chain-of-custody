@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Case {{ case.number }}: {{ case.title }}</h1>
+<p class="muted">Members: {% for m in case.members %}{{ m.username }} ({{ m.role }}){% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% if can('evidence.create') %}<p><a href="{{ url_for('main.evidence_new', case_id=case.id) }}">Add evidence to this case</a></p>{% endif %}
+{% include "_evidence_table.html" %}
+{% endblock %}

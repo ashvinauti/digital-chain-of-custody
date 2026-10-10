@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Two-factor authentication</h1>
+{% if enabled %}
+  <p class="ok">Enabled. You will be asked for a code from your authenticator app at each sign-in.</p>
+  <h2>Disable</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">Current 6-digit code</label><input type="text" id="code" name="code" inputmode="numeric" required>
+    <p><button>Disable two-factor authentication</button></p>
+  </form>
+{% else %}
+  <ol>
+    <li>Scan this QR code with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, ...).</li>
+    <li>Enter the 6-digit code it shows to confirm.</li>
+  </ol>
+  <div>{{ qr_svg|safe }}</div>
+  <p class="muted">Can't scan? Enter this key manually: <code>{{ secret }}</code></p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">6-digit code</label><input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+    <p><button>Enable</button></p>
+  </form>
+{% endif %}
+{% endblock %}

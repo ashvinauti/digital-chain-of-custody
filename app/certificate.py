@@ -30,10 +30,19 @@ def _describe(entry):
         return "Hash re-verified: " + ("MATCH" if d.get("match") else f"MISMATCH (actual {d.get('actual')})")
     if entry.action == "certificate.issue":
         return f"Certificate issued (PDF sha256 {d.get('pdf_sha256', '')[:16]}...)"
+    if entry.action == "analysis.run":
+        params = ", ".join(f"{k}={v}" for k, v in sorted(d.get("params", {}).items()))
+        return f"Read-only analysis: {d.get('tool')}" + (f" ({params})" if params else "")
+    if entry.action == "analysis.note":
+        return f"Finding: {d.get('text')}"
+    if entry.action == "evidence.export":
+        return "Verified working copy exported"
+    if entry.action == "evidence.export_refused":
+        return f"Export REFUSED: hash mismatch (actual {d.get('actual')})"
     return entry.details
 
 
-def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_by, issued_at):
+def render_certificate(evidence, events, *, file_ok, actual_hash, chain, key_id, issued_by, issued_at):
     """Return PDF bytes.
 
     `events`: this item's audit entries; `chain`: a ChainVerification for
@@ -53,7 +62,7 @@ def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_
     if all_ok:
         story.append(Paragraph(
             "The integrity checks below passed at the time of issue: the stored file matches its "
-            "acquisition hash and the audit log hash chain is intact.", styles["Normal"]))
+            "acquisition hash, and every audit log entry's hash, link and signature verified.", styles["Normal"]))
     else:
         story.append(Paragraph(
             '<font color="red"><b>INTEGRITY CHECK FAILED.</b> This document does not certify '
@@ -62,7 +71,7 @@ def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_
 
     meta = [
         ["Evidence ID", str(evidence.id)],
-        ["Case number", _p(evidence.case_number, SMALL)],
+        ["Case", _p(f"{evidence.case.number}: {evidence.case.title}", SMALL)],
         ["Description", _p(evidence.description, SMALL)],
         ["Original filename", _p(evidence.original_filename, SMALL)],
         ["Size", f"{evidence.size_bytes} bytes"],
@@ -71,8 +80,11 @@ def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_
         ["SHA-256 (acquisition)", _p(evidence.sha256, MONO)],
         ["SHA-256 (now)", _p(actual_hash or "FILE MISSING", MONO)],
         ["File integrity", "PASS" if file_ok else "FAIL"],
-        ["Audit chain", f"PASS ({chain.entries_checked} entries)" if chain.ok else f"FAIL ({len(chain.errors)} problems)"],
-        ["Audit log head hash", _p(chain.head_hash, MONO)],
+        ["Audit chain", f"PASS ({chain.entries_checked} entries, {chain.anchors_checked} "
+                        f"anchor{'' if chain.anchors_checked == 1 else 's'})"
+         if chain.ok else f"FAIL ({len(chain.errors)} problems)"],
+        ["Audit log head", _p(f"entry {chain.head_id}: {chain.head_hash}", MONO)],
+        ["Signing key ID", _p(f"{key_id} (Ed25519; public key at /public-key.pem)", MONO)],
         ["Issued by / at", _p(f"{issued_by} / {issued_at}", SMALL)],
     ]
     t = Table(meta, colWidths=[45 * mm, 135 * mm])
@@ -89,7 +101,7 @@ def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_
     for e in events:
         rows.append([
             str(e.id),
-            _p(e.timestamp[:23] + "Z", MONO),
+            _p(e.timestamp[:19].replace("T", " ") + "Z", MONO),
             _p(e.actor, SMALL),
             _p(f"{e.action}: {_describe(e)}", SMALL),
             _p(e.entry_hash, MONO),
@@ -111,10 +123,10 @@ def render_certificate(evidence, events, *, file_ok, actual_hash, chain, issued_
     story += [
         Spacer(1, 6 * mm),
         Paragraph(
-            "To check this certificate later: confirm the evidence file's SHA-256 matches the value "
-            "above, run <font face='Courier'>flask verify-log</font>, and confirm the audit log head "
-            "hash above still appears in the log. The SHA-256 of this PDF is recorded in the "
-            "certificate.issue audit entry that follows the events listed.",
+            "To check this certificate later, upload it at /certificates/verify (or run "
+            "<font face='Courier'>flask verify-certificate FILE</font>): the SHA-256 of this exact PDF is "
+            "recorded in a signed certificate.issue audit entry, which is then anchored outside the "
+            "database. Also confirm the evidence file's SHA-256 still matches the value above.",
             styles["Italic"],
         ),
     ]

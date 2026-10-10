@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Verify a custody certificate</h1>
+<p>Upload a certificate PDF. It is genuine only if its exact SHA-256 was recorded in a signed <code>certificate.issue</code> audit entry.</p>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="file" name="file" accept="application/pdf" required> <button>Verify</button>
+</form>
+{% if outcome %}
+  {% if outcome.valid %}
+    <p class="ok">GENUINE: issued {{ outcome.issued_at }} by {{ outcome.issued_by }} (audit entry {{ outcome.entry_id }}).</p>
+    {% if outcome.evidence_id %}<p>Covers <a href="{{ url_for('main.evidence_detail', evidence_id=outcome.evidence_id) }}">evidence #{{ outcome.evidence_id }}</a>.</p>
+    {% else %}<p class="muted">It covers evidence in a case you are not assigned to.</p>{% endif %}
+    {% if not outcome.certified_ok %}<p class="bad">Note: this certificate itself reported a FAILED integrity check when it was issued.</p>{% endif %}
+  {% else %}
+    <p class="bad">NOT VERIFIED: {{ outcome.reason }}</p>
+  {% endif %}
+  <p class="muted">PDF SHA-256: <span class="hash">{{ outcome.pdf_sha256 }}</span></p>
+{% endif %}
+{% endblock %}

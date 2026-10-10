@@ -2,22 +2,35 @@
 {% block content %}
 <h1>Users</h1>
 <table>
-  <tr><th>Username</th><th>Role</th><th>Status</th><th></th></tr>
+  <tr><th>Username</th><th>Role</th><th>Status</th><th>2FA</th><th>Actions</th></tr>
   {% for u in users %}
-  <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ 'active' if u.active else 'disabled' }}</td>
+  <tr><td>{{ u.username }}</td><td>{{ u.role }}</td>
+    <td>{{ 'active' if u.active else 'disabled' }}{% if u.is_locked %}, <span class="bad">locked</span>{% endif %}{% if u.must_change_password %}, must change password{% endif %}</td>
+    <td>{{ 'on' if u.totp_enabled else 'off' }}</td>
     <td>{% if u.id != current_user.id %}
-      <form class="inline" method="post" action="{{ url_for('main.user_set_active', user_id=u.id) }}">
+      <form class="inline" method="post" action="{{ url_for('main.user_admin_action', user_id=u.id, op='active') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="active" value="{{ '0' if u.active else '1' }}">
-        <button>{{ 'Disable' if u.active else 'Enable' }}</button>
-      </form>{% endif %}</td></tr>
+        <button>{{ 'Disable' if u.active else 'Enable' }}</button></form>
+      {% if u.is_locked %}<form class="inline" method="post" action="{{ url_for('main.user_admin_action', user_id=u.id, op='unlock') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Unlock</button></form>{% endif %}
+      {% if u.totp_enabled %}<form class="inline" method="post" action="{{ url_for('main.user_admin_action', user_id=u.id, op='reset-2fa') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Reset 2FA</button></form>{% endif %}
+      <details><summary>Reset password</summary>
+        <form method="post" action="{{ url_for('main.user_admin_action', user_id=u.id, op='reset-password') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="password" name="password" minlength="12" placeholder="temporary password (12+)" required>
+          <button>Set</button></form>
+        <span class="muted">Also unlocks the account and revokes its API tokens.</span></details>
+    {% endif %}</td></tr>
   {% endfor %}
 </table>
 <h2>Create user</h2>
+<p class="muted">The user must choose their own password at first sign-in.</p>
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label for="username">Username</label><input type="text" id="username" name="username" required>
-  <label for="password">Password (12+ characters)</label><input type="password" id="password" name="password" minlength="12" required>
+  <label for="password">Temporary password (12+ characters)</label><input type="password" id="password" name="password" minlength="12" required>
   <label for="role">Role</label>
   <select id="role" name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select>
   <p><button>Create</button></p>

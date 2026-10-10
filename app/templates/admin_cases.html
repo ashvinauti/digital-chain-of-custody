@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Cases</h1>
+<p class="muted">Admins create cases and assign members. Only members can see a case's evidence; admins never can.</p>
+<table>
+  <tr><th>Case</th><th>Title</th><th>Members</th><th>Evidence items</th></tr>
+  {% for c in cases %}
+  <tr><td><a href="{{ url_for('main.admin_case', case_id=c.id) }}">{{ c.number }}</a></td><td>{{ c.title }}</td>
+      <td>{{ c.members|map(attribute='username')|join(', ') }}</td><td>{{ c.evidence|length }}</td></tr>
+  {% else %}
+  <tr><td colspan="4">No cases yet.</td></tr>
+  {% endfor %}
+</table>
+<h2>New case</h2>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="number">Case number</label><input type="text" id="number" name="number" required>
+  <label for="title">Title</label><input type="text" id="title" name="title" required>
+  <p><button>Create case</button></p>
+</form>
+{% endblock %}
