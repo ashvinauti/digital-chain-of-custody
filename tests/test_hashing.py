@@ -79,5 +79,6 @@ def test_altered_hash_column_detected(app, upload):
 
 def test_missing_file_detected(app, upload):
     ev = db.session.get(Evidence, upload())
+    os.chmod(evidence_path(ev), 0o600)  # Windows refuses to delete read-only files
     os.remove(evidence_path(ev))
     assert check_evidence_integrity(ev) == (False, None)
