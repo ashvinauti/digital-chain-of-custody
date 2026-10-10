@@ -1,0 +1,77 @@
+from datetime import datetime, timezone
+
+from flask_login import UserMixin
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from . import db, login_manager
+
+ROLES = ("investigator", "reviewer", "admin")
+
+
+def utcnow_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(16), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.String(40), nullable=False, default=utcnow_iso)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_active(self):
+        return self.active
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+
+class Evidence(db.Model):
+    __tablename__ = "evidence"
+
+    id = db.Column(db.Integer, primary_key=True)
+    case_number = db.Column(db.String(64), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    storage_name = db.Column(db.String(64), unique=True, nullable=False)
+    size_bytes = db.Column(db.BigInteger, nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    uploaded_at = db.Column(db.String(40), nullable=False, default=utcnow_iso)
+    # Convenience pointer; the audit log is the authoritative custody history.
+    custodian_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    uploaded_by = db.relationship("User", foreign_keys=[uploaded_by_id])
+    custodian = db.relationship("User", foreign_keys=[custodian_id])
+
+
+class AuditEntry(db.Model):
+    """One link in the append-only, hash-chained audit log.
+
+    entry_hash = SHA-256(canonical JSON of every other field, including prev_hash).
+    prev_hash is unique, so two entries can never claim the same predecessor
+    (prevents a fork if two writers race).
+    """
+
+    __tablename__ = "audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.String(40), nullable=False)
+    actor = db.Column(db.String(64), nullable=False)
+    action = db.Column(db.String(64), nullable=False)
+    evidence_id = db.Column(db.Integer, nullable=True, index=True)
+    details = db.Column(db.Text, nullable=False)  # canonical JSON
+    prev_hash = db.Column(db.String(64), nullable=False, unique=True)
+    entry_hash = db.Column(db.String(64), nullable=False, unique=True)

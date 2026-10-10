@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Chain of Custody{% endblock %}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 1rem; color: #222; }
+  nav { display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: .5rem; margin-bottom: 1rem; }
+  nav .spacer { flex: 1; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { border: 1px solid #ddd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f3f3f3; }
+  code, .hash { font-family: ui-monospace, monospace; font-size: .8rem; word-break: break-all; }
+  .flash { background: #fff6d6; border: 1px solid #e6c84f; padding: .5rem; margin-bottom: 1rem; }
+  .ok { color: #176f2c; font-weight: bold; } .bad { color: #b00020; font-weight: bold; }
+  form.inline { display: inline; }
+  label { display: block; margin: .5rem 0 .2rem; }
+  input[type=text], input[type=password], textarea, select { width: 100%; max-width: 30rem; }
+</style>
+</head>
+<body>
+<nav>
+  <strong>Chain of Custody</strong>
+  {% if current_user.is_authenticated %}
+    {% if can('evidence.view') %}<a href="{{ url_for('main.evidence_list') }}">Evidence</a>{% endif %}
+    {% if can('evidence.create') %}<a href="{{ url_for('main.evidence_new') }}">Upload</a>{% endif %}
+    {% if can('audit.view') %}<a href="{{ url_for('main.audit_log') }}">Audit log</a>{% endif %}
+    {% if can('users.manage') %}<a href="{{ url_for('main.users') }}">Users</a>{% endif %}
+    <span class="spacer"></span>
+    <span>{{ current_user.username }} ({{ current_user.role }})</span>
+    <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button>Log out</button>
+    </form>
+  {% endif %}
+</nav>
+{% for msg in get_flashed_messages() %}<div class="flash">{{ msg }}</div>{% endfor %}
+{% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Users</h1>
+<table>
+  <tr><th>Username</th><th>Role</th><th>Status</th><th></th></tr>
+  {% for u in users %}
+  <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ 'active' if u.active else 'disabled' }}</td>
+    <td>{% if u.id != current_user.id %}
+      <form class="inline" method="post" action="{{ url_for('main.user_set_active', user_id=u.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="active" value="{{ '0' if u.active else '1' }}">
+        <button>{{ 'Disable' if u.active else 'Enable' }}</button>
+      </form>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+<h2>Create user</h2>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="username">Username</label><input type="text" id="username" name="username" required>
+  <label for="password">Password (12+ characters)</label><input type="password" id="password" name="password" minlength="12" required>
+  <label for="role">Role</label>
+  <select id="role" name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select>
+  <p><button>Create</button></p>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Evidence</h1>
+<table>
+  <tr><th>#</th><th>Case</th><th>File</th><th>SHA-256</th><th>Custodian</th><th>Acquired (UTC)</th></tr>
+  {% for ev in items %}
+  <tr>
+    <td><a href="{{ url_for('main.evidence_detail', evidence_id=ev.id) }}">{{ ev.id }}</a></td>
+    <td>{{ ev.case_number }}</td>
+    <td>{{ ev.original_filename }}</td>
+    <td class="hash">{{ ev.sha256 }}</td>
+    <td>{{ ev.custodian.username }}</td>
+    <td>{{ ev.uploaded_at }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">No evidence yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
