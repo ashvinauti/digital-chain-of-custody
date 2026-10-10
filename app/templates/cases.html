@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>My cases</h1>
+<table>
+  <tr><th>Case</th><th>Title</th><th>Evidence items</th><th>Members</th></tr>
+  {% for c in cases %}
+  <tr><td><a href="{{ url_for('main.case_detail', case_id=c.id) }}">{{ c.number }}</a></td><td>{{ c.title }}</td>
+      <td>{{ c.evidence|length }}</td><td>{{ c.members|map(attribute='username')|join(', ') }}</td></tr>
+  {% else %}
+  <tr><td colspan="4">You are not assigned to any case yet. Ask an admin to add you.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

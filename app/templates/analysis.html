@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Analyse evidence #{{ ev.id }}: {{ ev.original_filename }}</h1>
+<p class="muted">Case {{ ev.case.number }} · {{ ev.size_bytes }} bytes · SHA-256 <span class="hash">{{ ev.sha256 }}</span><br>
+All tools read the stored original without modifying it. Every run is recorded in the audit log.
+<a href="{{ url_for('main.evidence_detail', evidence_id=ev.id) }}">Back to evidence</a></p>
+
+<div class="grid">
+  <form method="post"><fieldset><legend>Identify file type</legend>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="identify">
+    <p class="muted">Matches magic bytes (E01, NTFS, ZIP, PE, SQLite and more).</p><button>Run</button></fieldset></form>
+
+  <form method="post"><fieldset><legend>Hashes and entropy</legend>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="profile">
+    <p class="muted">MD5, SHA-1 and SHA-256 (for hash-set lookups), and Shannon entropy.</p><button>Run</button></fieldset></form>
+
+  <form method="post"><fieldset><legend>Hex viewer</legend>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="hex">
+    <label>Offset (bytes)</label><input type="text" name="offset" value="{{ form.get('offset', 0) if tool == 'hex' else 0 }}" inputmode="numeric">
+    <label>Length (16-4096)</label><input type="text" name="length" value="512" inputmode="numeric">
+    <p><button>View</button></p></fieldset></form>
+
+  <form method="post"><fieldset><legend>Extract strings</legend>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="strings">
+    <label>Encoding</label><select name="encoding"><option value="ascii">ASCII</option><option value="utf16le">UTF-16LE (Windows)</option></select>
+    <label>Minimum length</label><input type="text" name="min_len" value="6" inputmode="numeric">
+    <label>Start offset</label><input type="text" name="start" value="0" inputmode="numeric">
+    <p><button>Extract</button></p></fieldset></form>
+
+  <form method="post"><fieldset><legend>Keyword search</legend>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="search">
+    <label>Keyword (case-insensitive; ASCII and UTF-16LE)</label><input type="text" name="keyword" value="{{ form.get('keyword', '') }}" required>
+    <p><button>Search</button></p></fieldset></form>
+</div>
+
+{% if result %}
+<h2>Result: {{ tool }}</h2>
+{% if tool == 'identify' %}
+  <p><strong>{{ result.type }}</strong>{% if result.magic_hex %} <span class="muted">(magic <code>{{ result.magic_hex }}</code> at offset {{ result.magic_offset }})</span>{% endif %}</p>
+{% elif tool == 'profile' %}
+  <table>
+    <tr><th>Size</th><td>{{ result.size_bytes }} bytes</td></tr>
+    <tr><th>MD5</th><td class="hash">{{ result.md5 }}</td></tr>
+    <tr><th>SHA-1</th><td class="hash">{{ result.sha1 }}</td></tr>
+    <tr><th>SHA-256</th><td class="hash">{{ result.sha256 }}
+      {% if result.sha256 == ev.sha256 %}<span class="ok">matches acquisition hash</span>{% else %}<span class="bad">DIFFERS from acquisition hash</span>{% endif %}</td></tr>
+    <tr><th>Entropy</th><td>{{ result.entropy_bits_per_byte }} bits/byte ({{ result.entropy_hint }})</td></tr>
+  </table>
+{% elif tool == 'hex' %}
+  <pre>{% for r in result.rows %}{{ '%010x'|format(r.offset) }}  {{ '%-47s'|format(r.hex) }}  {{ r.ascii }}
+{% endfor %}</pre>
+  <form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="hex">
+    <input type="hidden" name="offset" value="{{ [result.offset - 512, 0]|max }}"><button>&larr; Previous 512</button></form>
+  <form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="hex">
+    <input type="hidden" name="offset" value="{{ result.offset + result.length }}"><button>Next 512 &rarr;</button></form>
+{% elif tool == 'strings' %}
+  <p>{{ result.strings|length }} strings{% if result.next_offset is not none %}; more remain from offset {{ result.next_offset }}{% endif %}.</p>
+  <table><tr><th>Offset</th><th>String</th></tr>
+  {% for s in result.strings %}<tr><td>{{ s.offset }}</td><td><code>{{ s.text }}</code></td></tr>{% endfor %}</table>
+  {% if result.next_offset is not none %}
+  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="strings">
+    <input type="hidden" name="encoding" value="{{ form.get('encoding', 'ascii') }}"><input type="hidden" name="min_len" value="{{ form.get('min_len', 6) }}">
+    <input type="hidden" name="start" value="{{ result.next_offset }}"><button>Next page</button></form>
+  {% endif %}
+{% elif tool == 'search' %}
+  <p>{{ result.hits|length }} hit(s) for <code>{{ result.keyword }}</code>{% if result.truncated %} (stopped at the limit){% endif %}.</p>
+  <table><tr><th>Offset</th><th>Encoding</th><th>Context</th><th></th></tr>
+  {% for h in result.hits %}<tr><td>{{ h.offset }}</td><td>{{ h.encoding }}</td><td><code>{{ h.context }}</code></td>
+    <td><form class="inline" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tool" value="hex">
+      <input type="hidden" name="offset" value="{{ (h.offset // 16) * 16 }}"><button>Hex</button></form></td></tr>{% endfor %}</table>
+{% endif %}
+{% endif %}
+
+<h2>Findings</h2>
+<p class="muted">Notes are written into the signed audit chain and appear on the custody certificate. They cannot be edited or deleted.</p>
+<form method="post" action="{{ url_for('main.evidence_note', evidence_id=ev.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <textarea name="text" rows="3" maxlength="5000" required placeholder="e.g. Offset 0x1F400: deleted chat log fragment referencing ..."></textarea>
+  <p><button>Add finding</button></p>
+</form>
+<table>
+  <tr><th>#</th><th>Timestamp (UTC)</th><th>Investigator</th><th>Finding</th></tr>
+  {% for n in notes %}<tr><td>{{ n.id }}</td><td>{{ n.timestamp }}</td><td>{{ n.actor }}</td><td>{{ (n.details|fromjson).text }}</td></tr>
+  {% else %}<tr><td colspan="4">No findings yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

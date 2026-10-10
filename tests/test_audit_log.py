@@ -88,7 +88,9 @@ def test_modified_entry_with_recomputed_hash_detected(app):
     _raw("UPDATE audit_log SET actor = 'mallory', entry_hash = :h WHERE id = 3", h=forged)
     result = audit.verify_chain()
     assert not result.ok
-    assert [eid for eid, _ in result.errors] == [4]
+    # The signature no longer matches, and the next entry's link breaks.
+    assert sorted(eid for eid, _ in result.errors) == [3, 4]
+    assert any("invalid signature" in msg for _, msg in result.errors)
 
 
 def test_deleted_entry_detected(app):
@@ -99,7 +101,7 @@ def test_deleted_entry_detected(app):
     assert all(eid == 3 for eid, _ in result.errors)
 
 
-def test_truncation_detected_with_external_head(app):
+def test_truncation_detected_with_external_head(app, tmp_path):
     _seed()
     head = audit.verify_chain().head_hash
     _raw("DELETE FROM audit_log WHERE id = (SELECT MAX(id) FROM audit_log)")

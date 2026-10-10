@@ -15,6 +15,10 @@
   .flash { background: #fff6d6; border: 1px solid #e6c84f; padding: .5rem; margin-bottom: 1rem; }
   .ok { color: #176f2c; font-weight: bold; } .bad { color: #b00020; font-weight: bold; }
   form.inline { display: inline; }
+  .muted { color: #666; font-size: .85rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+  fieldset { border: 1px solid #ddd; padding: .5rem .75rem; }
+  pre { background: #f6f6f6; padding: .5rem; overflow-x: auto; font-size: .8rem; }
   label { display: block; margin: .5rem 0 .2rem; }
   input[type=text], input[type=password], textarea, select { width: 100%; max-width: 30rem; }
 </style>
@@ -23,12 +27,15 @@
 <nav>
   <strong>Chain of Custody</strong>
   {% if current_user.is_authenticated %}
+    {% if can('cases.view') %}<a href="{{ url_for('main.cases') }}">My cases</a>{% endif %}
     {% if can('evidence.view') %}<a href="{{ url_for('main.evidence_list') }}">Evidence</a>{% endif %}
     {% if can('evidence.create') %}<a href="{{ url_for('main.evidence_new') }}">Upload</a>{% endif %}
+    {% if can('certificate.verify') %}<a href="{{ url_for('main.certificate_verify') }}">Verify certificate</a>{% endif %}
     {% if can('audit.view') %}<a href="{{ url_for('main.audit_log') }}">Audit log</a>{% endif %}
+    {% if can('cases.manage') %}<a href="{{ url_for('main.admin_cases') }}">Cases</a>{% endif %}
     {% if can('users.manage') %}<a href="{{ url_for('main.users') }}">Users</a>{% endif %}
     <span class="spacer"></span>
-    <span>{{ current_user.username }} ({{ current_user.role }})</span>
+    <a href="{{ url_for('account.overview') }}">{{ current_user.username }} ({{ current_user.role }})</a>
     <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button>Log out</button>

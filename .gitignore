@@ -5,3 +5,6 @@ instance/
 evidence_store/
 .env
 *.db
+
+ingest/*
+!ingest/.gitkeep

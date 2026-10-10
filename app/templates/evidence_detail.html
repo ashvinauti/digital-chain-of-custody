@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Evidence #{{ ev.id }}</h1>
 <table>
-  <tr><th>Case number</th><td>{{ ev.case_number }}</td></tr>
+  <tr><th>Case</th><td><a href="{{ url_for('main.case_detail', case_id=ev.case.id) }}">{{ ev.case.number }}</a>: {{ ev.case.title }}</td></tr>
   <tr><th>Description</th><td>{{ ev.description }}</td></tr>
   <tr><th>Original filename</th><td>{{ ev.original_filename }}</td></tr>
   <tr><th>Size</th><td>{{ ev.size_bytes }} bytes</td></tr>
@@ -17,6 +17,12 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Re-verify hash</button>
 </form>
 {% endif %}
+{% if can('evidence.analyze') %}<a href="{{ url_for('main.evidence_analysis', evidence_id=ev.id) }}"><button type="button">Analyse (read-only)</button></a>{% endif %}
+{% if can('evidence.export') and ev.custodian_id == current_user.id %}
+<form class="inline" method="post" action="{{ url_for('main.evidence_export', evidence_id=ev.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button title="Re-verifies the hash, then downloads">Export verified working copy</button>
+</form>
+{% endif %}
 {% if can('certificate.issue') %}
 <form class="inline" method="post" action="{{ url_for('main.evidence_certificate', evidence_id=ev.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Download custody certificate (PDF)</button>
@@ -28,7 +34,8 @@
 <h2>Transfer custody</h2>
 <form method="post" action="{{ url_for('main.evidence_transfer', evidence_id=ev.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label for="to_user_id">To investigator</label>
+  {% if not investigators %}<p class="muted">No other investigator is assigned to this case.</p>{% endif %}
+  <label for="to_user_id">To investigator (case members only)</label>
   <select id="to_user_id" name="to_user_id" required>
     {% for u in investigators %}<option value="{{ u.id }}">{{ u.username }}</option>{% endfor %}
   </select>
