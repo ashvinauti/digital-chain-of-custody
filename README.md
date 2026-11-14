@@ -1,5 +1,10 @@
 # Digital Chain of Custody
 
+> **About this project**  
+> A digital evidence chain-of-custody application. It tracks custody with integrity checks, signed audit logs and PDF custody certificates.  
+> Stack: Python, Flask, PostgreSQL.  
+> I designed the architecture and built it with AI coding assistance.
+
 A small Flask application for recording the chain of custody of digital evidence, and for examining that evidence without changing it.
 It does six things:
 
